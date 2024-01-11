@@ -7,7 +7,7 @@ import numpy as np
 
 
 parser = argparse.ArgumentParser(description='Convert FLUKA binary file to SLCIO file with MCParticles')
-parser.add_argument('files_in', metavar='FILE_IN', help='Input binary FLUKA file(s)', nargs='+')
+parser.add_argument('files_in', metavar='FILE_IN', help='Input binary FLUKA file(s), or a directory with all and only the input files', nargs='+')
 parser.add_argument('file_out', metavar='FILE_OUT.slcio', help='Output SLCIO file')
 parser.add_argument('-c', '--comment', metavar='TEXT',  help='Comment to be added to the header', type=str)
 parser.add_argument('-n', '--normalization', metavar='N',  help='Normalization of the generated sample', type=float, default=1.0)
@@ -68,8 +68,15 @@ line_dt=np.dtype([
 	('age_mo', np.float64)
 ])
 
+############# Define input files name
+if ( len(args.files_in) == 1 ) and ( os.path.isdir(args.files_in[0]) ):
+    import pathlib
+    files_in = [f for f in pathlib.Path(args.files_in[0]).iterdir() if f.is_file()] 
+else:
+    files_in = args.files_in
+
 ######################################## Start of the processing
-print(f'Converting data from {len(args.files_in)} file(s)\nto SLCIO file: {args.file_out:s}\nwith normalization: {args.normalization:.1f}')
+print(f'Converting data from {len(files_in)} file(s)\nto SLCIO file: {args.file_out:s}\nwith normalization: {args.normalization:.1f}')
 print(f'Storing {args.files_event:d} files/event');
 if args.pdgs is not None:
 	print(f'Will only use particles with PDG IDs: {args.pdgs}')
@@ -81,7 +88,7 @@ wrt.open(args.file_out, EVENT.LCIO.WRITE_NEW)
 # Write a RunHeader
 run = IMPL.LCRunHeaderImpl()
 run.setRunNumber(0)
-run.parameters().setValue('NInputFiles', len(args.files_in))
+run.parameters().setValue('NInputFiles', len(files_in))
 run.parameters().setValue('Normalization', args.normalization)
 run.parameters().setValue('FilesPerEvent', args.files_event)
 if args.t_max:
@@ -105,7 +112,7 @@ col = None
 evt = None
 
 # Reading the complete files
-for iF, file_in in enumerate(args.files_in):
+for iF, file_in in enumerate(files_in):
 	if args.max_lines and nLines >= args.max_lines:
 			break
 	# Creating the LCIO event and collection
@@ -204,7 +211,7 @@ for iF, file_in in enumerate(args.files_in):
 
 	# Updating counters
 	nEventFiles += 1
-	if nEventFiles >= args.files_event or iF+1 == len(args.files_in):
+	if nEventFiles >= args.files_event or iF+1 == len(files_in):
 		nEvents +=1
 		nEventFiles = 0
 		wrt.writeEvent(evt)
