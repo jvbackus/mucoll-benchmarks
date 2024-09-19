@@ -3,8 +3,6 @@
 
 import os
 import argparse
-import numpy as np
-
 
 parser = argparse.ArgumentParser(description='Convert FLUKA binary file to SLCIO file with MCParticles')
 parser.add_argument('files_in', metavar='FILE_IN', help='Input binary FLUKA file(s)', nargs='+')
@@ -14,6 +12,7 @@ parser.add_argument('-n', '--normalization', metavar='N',  help='Normalization o
 parser.add_argument('-f', '--files_event', metavar='L',  help='Number of files to merge into a single LCIO event (default: 1)', type=int, default=1)
 parser.add_argument('-m', '--max_lines', metavar='M',  help='Maximum number of lines to process', type=int, default=None)
 parser.add_argument('-o', '--overwrite',  help='Overwrite existing output file', action='store_true', default=False)
+parser.add_argument('-v', '--version', metavar='VER',  help='Version of the FLUKA input format', type=str, required=True)
 parser.add_argument('-z', '--invert_z',  help='Invert Z position/momentum', action='store_true', default=False)
 parser.add_argument('--pdgs', metavar='ID',  help='PDG IDs of particles to be included', type=int, default=None, nargs='+')
 parser.add_argument('--nopdgs', metavar='ID',  help='PDG IDs of particles to be excluded', type=int, default=None, nargs='+')
@@ -33,10 +32,20 @@ from pyLCIO import UTIL, EVENT, IMPL, IO, IOIMPL
 
 import random
 import math
+import numpy as np
 
 from bib_pdgs import FLUKA_PIDS, PDG_PROPS
+from fluka_formats import FLUKA_BIB_FORMATS
+
+# Validating the FLUKA format version
+if not args.version in FLUKA_BIB_FORMATS:
+	raise LookupError(f'Unknown FLUKA format version: `{args.version}`')
+# Defining the binary format of a single entry
+line_dt = FLUKA_BIB_FORMATS[args.version]
+
 
 def bytes_from_file(filename):
+	"""Function to read a binary file into enumeratable list of values"""
 	with open(filename, 'rb') as f:
 		while True:
 			chunk = np.fromfile(f, dtype=line_dt, count=1)
@@ -44,29 +53,6 @@ def bytes_from_file(filename):
 				return
 			yield chunk
 
-# Binary format of a single entry
-line_dt=np.dtype([
-	('fid',  np.int32),
-	('fid_mo',  np.int32),
-	('E', np.float64),
-	('x', np.float64),
-	('y', np.float64),
-	('z', np.float64),
-	('cx', np.float64),
-	('cy', np.float64),
-	('cz', np.float64),
-	('time', np.float64),
-	('x_mu', np.float64),
-	('y_mu', np.float64),
-	('z_mu', np.float64),
-	('x_mo', np.float64),
-	('y_mo', np.float64),
-	('z_mo', np.float64),
-	('px_mo', np.float64),
-	('py_mo', np.float64),
-	('pz_mo', np.float64),
-	('age_mo', np.float64)
-])
 
 ######################################## Start of the processing
 print(f'Converting data from {len(args.files_in)} file(s)\nto SLCIO file: {args.file_out:s}\nwith normalization: {args.normalization:.1f}')
@@ -115,13 +101,13 @@ for iF, file_in in enumerate(args.files_in):
 
 		evt.setEventNumber(nEvents)
 		evt.addCollection(col, 'MCParticle')
-	# Looping over particles from the file
+	# Looping over entries in the file
 	for iL, data in enumerate(bytes_from_file(file_in)):
 		if args.max_lines and nLines >= args.max_lines:
 			break
 		nLines += 1
 
-		# Extracting relevant values from the line
+		# Extracting relevant values from the entry
 		fid,e, x,y,z, cx,cy,cz, time = (data[n][0] for n in [
 			'fid', 'E',
 			'x','y','z',
@@ -143,9 +129,8 @@ for iF, file_in in enumerate(args.files_in):
 		if args.t_max is not None and t > args.t_max:
 			continue
 
-		# Calculating the components of the momentum vector
-		mom = np.array([cx, cy, cz], dtype=np.float32)
-		mom *= e
+		# Calculating the momentum vector
+		mom = np.array([cx, cy, cz], dtype=np.float32) * e
 
 		# Skipping if it's a neutron with too low kinetic energy
 		if args.ne_min is not None and abs(pdg) == 2112 and np.linalg.norm(mom) < args.ne_min:
@@ -158,7 +143,7 @@ for iF, file_in in enumerate(args.files_in):
 			continue
 		charge, mass = PDG_PROPS[pdg]
 
-		# Converting position [cm -> mm]
+		# Calculating the position vector [cm -> mm]
 		pos = np.array([x, y, z], dtype=np.float64) * 10.0
 
 		# Calculating how many random copies of the particle to create according to the weight

@@ -1,4 +1,5 @@
-# MARS particle ID definitions for creating MCParticles
+"""Particle definitions for creating MCParticle instances"""
+
 # FORMAT: {<MARS ID>: pdgId}
 MARS_PIDS = {
     1:  2212,
@@ -43,6 +44,7 @@ MARS_PIDS = {
     40: -5332,
 }
 
+# FORMAT: {<FLUKA ID>: pdgId}
 FLUKA_PIDS = {
    -6: 1000020040,
    -5: 1000020030,
@@ -109,8 +111,8 @@ FLUKA_PIDS = {
 }
 
 
-# Particle properties for pdgId
-# FORMAT: {pdgId: charge, mass [GeV]}
+# Particle properties for a given pdgId
+# FORMAT: {pdgId: (charge, mass [GeV])}
 PDG_PROPS = {
     2212:       ( 1,  0.938272 ),
     2112:       ( 0,  0.939565 ),
