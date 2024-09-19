@@ -139,11 +139,6 @@ for iF, file_in in enumerate(args.files_in):
 		# Converting the absolute time of the particle [s -> ns]
 		t = time * 1e9
 
-		# Converting the len units from cm to mm
-		x = x * 10
-		y = y * 10
-		z = z * 10
-
 		# Skipping if particle's time is greater than allowed
 		if args.t_max is not None and t > args.t_max:
 			continue
@@ -159,9 +154,12 @@ for iF, file_in in enumerate(args.files_in):
 		# Getting the charge and mass of the particle
 		if pdg not in PDG_PROPS:
 			print('WARNING! No properties defined for PDG ID: {0:d}'.format(pdg))
-			print('         Skpping the particle...')
+			print('         Skipping the particle...')
 			continue
 		charge, mass = PDG_PROPS[pdg]
+
+		# Converting position [cm -> mm]
+		pos = np.array([x, y, z], dtype=np.float64) * 10.0
 
 		# Calculating how many random copies of the particle to create according to the weight
 		nP_frac, nP = math.modf(args.normalization)
@@ -176,8 +174,6 @@ for iF, file_in in enumerate(args.files_in):
 		particle.setTime(t)
 		particle.setMass(mass)
 		particle.setCharge(charge)
-		# Converting position: cm -> mm
-		pos = np.array([x, y, z], dtype=np.float64)
 
 		# Inverting Z position/momentum (if requested)
 		if args.invert_z:
@@ -186,6 +182,7 @@ for iF, file_in in enumerate(args.files_in):
 
 		# Creating the particle copies with random Phi rotation
 		px, py, pz = mom
+		x, y, z = pos
 		for i, iP in enumerate(range(nP)):
 			p = IMPL.MCParticleImpl(particle)
 			# Rotating position and momentum vectors by a random angle in Phi
