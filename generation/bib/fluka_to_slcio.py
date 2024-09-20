@@ -10,6 +10,7 @@ parser.add_argument('file_out', metavar='FILE_OUT.slcio', help='Output SLCIO fil
 parser.add_argument('-c', '--comment', metavar='TEXT',  help='Comment to be added to the header', type=str)
 parser.add_argument('-n', '--normalization', metavar='N',  help='Normalization of the generated sample', type=float, default=1.0)
 parser.add_argument('-f', '--files_event', metavar='L',  help='Number of files to merge into a single LCIO event (default: 1)', type=int, default=1)
+parser.add_argument('-l', '--lines_event', metavar='L',  help='Number of lines to merge into a single LCIO event (default: -1)', type=int, default=-1)
 parser.add_argument('-m', '--max_lines', metavar='M',  help='Maximum number of lines to process', type=int, default=None)
 parser.add_argument('-o', '--overwrite',  help='Overwrite existing output file', action='store_true', default=False)
 parser.add_argument('-v', '--version', metavar='VER',  help='Version of the FLUKA input format', type=str, required=True)
@@ -35,13 +36,13 @@ import math
 import numpy as np
 
 from bib_pdgs import FLUKA_PIDS, PDG_PROPS
-from fluka_formats import FLUKA_BIB_FORMATS
+from data_formats import DATA_FORMATS
 
 # Validating the FLUKA format version
-if not args.version in FLUKA_BIB_FORMATS:
-	raise LookupError(f'Unknown FLUKA format version: `{args.version}`')
+if not args.version in DATA_FORMATS:
+	raise LookupError(f'Unknown FLUKA format version: `{args.version}`\nSupported formats are: {list(DATA_FORMATS.keys())}')
 # Defining the binary format of a single entry
-line_dt = FLUKA_BIB_FORMATS[args.version]
+line_dt = DATA_FORMATS[args.version]
 
 
 def bytes_from_file(filename):
@@ -55,8 +56,8 @@ def bytes_from_file(filename):
 
 
 ######################################## Start of the processing
-print(f'Converting data from {len(args.files_in)} file(s)\nto SLCIO file: {args.file_out:s}\nwith normalization: {args.normalization:.1f}')
-print(f'Storing {args.files_event:d} files/event');
+print(f'Converting data from {len(args.files_in)} file(s)\n to SLCIO file: {args.file_out:s}\n with normalization: {args.normalization:.1f}')
+print(f'Splitting into {args.files_event:d} files/event and {args.lines_event:d} particles/event');
 if args.pdgs is not None:
 	print(f'Will only use particles with PDG IDs: {args.pdgs}')
 
@@ -85,8 +86,10 @@ wrt.writeRunHeader(run)
 # Bookkeeping variables
 random.seed()
 nEventFiles = 0
+nEventLines = 0
 nLines = 0
 nEvents = 0
+newEvent = True
 col = None
 evt = None
 
@@ -94,22 +97,33 @@ evt = None
 for iF, file_in in enumerate(args.files_in):
 	if args.max_lines and nLines >= args.max_lines:
 			break
-	# Creating the LCIO event and collection
-	if nEventFiles == 0:
-		col = IMPL.LCCollectionVec(EVENT.LCIO.MCPARTICLE)
-		evt = IMPL.LCEventImpl()
-
-		evt.setEventNumber(nEvents)
-		evt.addCollection(col, 'MCParticle')
 	# Looping over entries in the file
 	for iL, data in enumerate(bytes_from_file(file_in)):
 		if args.max_lines and nLines >= args.max_lines:
 			break
 		nLines += 1
+	
+		# Creating the LCIO event and collection if starting a new output event
+		if newEvent:
+			# Writing the current event
+			if nEventLines > 0:
+				wrt.writeEvent(evt)
+				print(f'Wrote event: {nEvents:d} with {col.getNumberOfElements()} particles')
+				nEvents += 1
+			# Resetting counters
+			newEvent = False
+			nEventLines = 0
+			nEventFiles = 0
+			# Creating a new event
+			col = IMPL.LCCollectionVec(EVENT.LCIO.MCPARTICLE)
+			evt = IMPL.LCEventImpl()
+			evt.setEventNumber(nEvents)
+			evt.addCollection(col, 'MCParticle')
 
 		# Extracting relevant values from the entry
-		fid,e, x,y,z, cx,cy,cz, time = (data[n][0] for n in [
-			'fid', 'E',
+		# Names should match the ones in FLUKA_FORMATS
+		fid, e_kin, x,y,z, cx,cy,cz, time = (data[n][0] for n in [
+			'fid', 'e_kin',
 			'x','y','z',
 			'cx', 'cy', 'cz',
 			'time'
@@ -129,11 +143,8 @@ for iF, file_in in enumerate(args.files_in):
 		if args.t_max is not None and t > args.t_max:
 			continue
 
-		# Calculating the momentum vector
-		mom = np.array([cx, cy, cz], dtype=np.float32) * e
-
 		# Skipping if it's a neutron with too low kinetic energy
-		if args.ne_min is not None and abs(pdg) == 2112 and np.linalg.norm(mom) < args.ne_min:
+		if args.ne_min is not None and abs(pdg) == 2112 and e_kin < args.ne_min:
 			continue
 
 		# Getting the charge and mass of the particle
@@ -142,6 +153,9 @@ for iF, file_in in enumerate(args.files_in):
 			print('         Skipping the particle...')
 			continue
 		charge, mass = PDG_PROPS[pdg]
+
+		# Calculating the momentum vector
+		mom = np.array([cx, cy, cz], dtype=np.float32) * e_kin
 
 		# Calculating the position vector [cm -> mm]
 		pos = np.array([x, y, z], dtype=np.float64) * 10.0
@@ -184,13 +198,20 @@ for iF, file_in in enumerate(args.files_in):
 			# Adding particle to the collection
 			col.addElement(p)
 
-	# Updating counters
+		# Checking line counters
+		nEventLines += 1
+		if args.lines_event > 0 and nEventLines >= args.lines_event:
+			newEvent = True
+	# Checking file counters
 	nEventFiles += 1
-	if nEventFiles >= args.files_event or iF+1 == len(args.files_in):
-		nEvents +=1
-		nEventFiles = 0
-		wrt.writeEvent(evt)
-		print(f'Wrote event: {nEvents:d} with {col.getNumberOfElements()} particles')
+	if args.files_event > 0 and nEventFiles >= args.files_event:
+		newEvent = True
 
-print(f'Wrote {nEvents:d} events to file: {args.file_out:s}')
+# Writing the last event
+if nEventLines > 0:
+	wrt.writeEvent(evt)
+	print(f'Wrote event: {nEvents:d} with {col.getNumberOfElements()} particles')
+	nEvents += 1
+
+print(f'+ Finished writing {nEvents:d} events to file: {args.file_out:s}')
 wrt.close()

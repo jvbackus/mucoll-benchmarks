@@ -3,12 +3,12 @@
 import numpy as np
 
 # Format definitions of the FLUKA-generated Beam Induced Background (BIB) samples
-FLUKA_BIB_FORMATS = {
+DATA_FORMATS = {
     # Kinematics of the BIB particle + mother particle + position of the muon decay
     '1': np.dtype([
 		('fid',    np.int32),
 		('fid_mo', np.int32),
-		('E',      np.float64),
+		('e_kin',  np.float64),
 		('x',      np.float64),
 		('y',      np.float64),
 		('z',      np.float64),
@@ -31,7 +31,7 @@ FLUKA_BIB_FORMATS = {
     '2': np.dtype([
         ('fid',    np.int32),
 		('fid_mo', np.int32),
-		('E',      np.float64),
+		('e_kin',  np.float64),
 		('x',      np.float64),
 		('y',      np.float64),
 		('z',      np.float64),
@@ -47,7 +47,7 @@ FLUKA_BIB_FORMATS = {
     '3': np.dtype([
         ('fid',    np.int32),
 		('fid_mo', np.int32),
-		('E',      np.float64),
+		('e_kin',  np.float64),
 		('x',      np.float64),
 		('y',      np.float64),
 		('z',      np.float64),
@@ -64,15 +64,13 @@ FLUKA_BIB_FORMATS = {
 		('px_mo',  np.float64),
 		('py_mo',  np.float64),
 		('pz_mo',  np.float64)
-	])
-}
+	]),
 
-# Format definitions of the FLUKA-generated Incoherent Pair Production (IPP) samples
-FLUKA_IPP_FORMATS = {
-    '1': np.dtype([
+# Format definitions of the Incoherent Pair Production (IPP) samples generated with Guinea Pig
+    'ip1': np.dtype([
 		('fid',    np.int32),
 		('fid_mo', np.int32),
-		('E',      np.float64),
+		('e_kin',  np.float64),
 		('x',      np.float64),
 		('y',      np.float64),
 		('z',      np.float64),
