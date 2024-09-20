@@ -96,7 +96,7 @@ evt = None
 # Reading the complete files
 for iF, file_in in enumerate(args.files_in):
 	if args.max_lines and nLines >= args.max_lines:
-			break
+		break
 	# Looping over entries in the file
 	for iL, data in enumerate(bytes_from_file(file_in)):
 		if args.max_lines and nLines >= args.max_lines:

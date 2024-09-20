@@ -58,7 +58,7 @@ DATA_FORMATS = {
 		('x_mu',   np.float64),
 		('y_mu',   np.float64),
 		('z_mu',   np.float64),
-        ('x_mo',   np.float64),
+		('x_mo',   np.float64),
 		('y_mo',   np.float64),
 		('z_mo',   np.float64),
 		('px_mo',  np.float64),
