@@ -17,7 +17,7 @@ parser.add_argument('-v', '--version', metavar='VER',  help='Version of the FLUK
 parser.add_argument('-z', '--invert_z',  help='Invert Z position/momentum', action='store_true', default=False)
 parser.add_argument('--pdgs', metavar='ID',  help='PDG IDs of particles to be included', type=int, default=None, nargs='+')
 parser.add_argument('--nopdgs', metavar='ID',  help='PDG IDs of particles to be excluded', type=int, default=None, nargs='+')
-parser.add_argument('--ne_min', metavar='E',  help='Minimum energy of accepted neutrons [GeV]', type=float, default=None)
+parser.add_argument('--np_min', metavar='E',  help='Minimum momentum of accepted neutrons [GeV]', type=float, default=None)
 parser.add_argument('--t_max', metavar='T',  help='Maximum time of accepted particles [ns]', type=float, default=None)
 
 args = parser.parse_args()
@@ -73,8 +73,8 @@ run.parameters().setValue('Normalization', args.normalization)
 run.parameters().setValue('FilesPerEvent', args.files_event)
 if args.t_max:
 	run.parameters().setValue('Time_max', args.t_max)
-if args.ne_min:
-	run.parameters().setValue('NeutronEnergy_min', args.ne_min)
+if args.np_min:
+	run.parameters().setValue('NeutronMomentum_min', args.np_min)
 if args.pdgs:
 	run.parameters().setValue('PdgIds', str(args.pdgs))
 if args.nopdgs:
@@ -144,7 +144,7 @@ for iF, file_in in enumerate(args.files_in):
 			continue
 
 		# Skipping if it's a neutron with too low kinetic energy
-		if args.ne_min is not None and abs(pdg) == 2112 and e_kin < args.ne_min:
+		if args.np_min is not None and abs(pdg) == 2112 and e_kin < args.np_min:
 			continue
 
 		# Getting the charge and mass of the particle
@@ -155,7 +155,8 @@ for iF, file_in in enumerate(args.files_in):
 		charge, mass = PDG_PROPS[pdg]
 
 		# Calculating the momentum vector
-		mom = np.array([cx, cy, cz], dtype=np.float32) * e_kin
+		mom_tot = sqrt(e_kin**2 + 2 * e_kin * mass)
+		mom = np.array([cx, cy, cz], dtype=np.float32) * mom_tot
 
 		# Calculating the position vector [cm -> mm]
 		pos = np.array([x, y, z], dtype=np.float64) * 10.0
