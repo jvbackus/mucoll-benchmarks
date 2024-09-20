@@ -66,7 +66,7 @@ DATA_FORMATS = {
 		('pz_mo',  np.float64)
 	]),
 
-# Format definitions of the Incoherent Pair Production (IPP) samples generated with Guinea Pig
+	# Format definitions of the Incoherent Pair Production (IPP) samples generated with Guinea Pig
     'ip1': np.dtype([
 		('fid',    np.int32),
 		('fid_mo', np.int32),
