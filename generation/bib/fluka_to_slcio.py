@@ -143,10 +143,6 @@ for iF, file_in in enumerate(args.files_in):
 		if args.t_max is not None and t > args.t_max:
 			continue
 
-		# Skipping if it's a neutron with too low kinetic energy
-		if args.np_min is not None and abs(pdg) == 2112 and e_kin < args.np_min:
-			continue
-
 		# Getting the charge and mass of the particle
 		if pdg not in PDG_PROPS:
 			print('WARNING! No properties defined for PDG ID: {0:d}'.format(pdg))
@@ -156,6 +152,9 @@ for iF, file_in in enumerate(args.files_in):
 
 		# Calculating the momentum vector
 		mom_tot = sqrt(e_kin**2 + 2 * e_kin * mass)
+		# Skipping if it's a neutron with too low momentum
+		if args.np_min is not None and abs(pdg) == 2112 and mom_tot < args.np_min:
+			continue
 		mom = np.array([cx, cy, cz], dtype=np.float32) * mom_tot
 
 		# Calculating the position vector [cm -> mm]
