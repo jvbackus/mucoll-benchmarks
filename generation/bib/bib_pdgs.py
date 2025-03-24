@@ -112,6 +112,7 @@ FLUKA_PIDS = {
 # Particle properties for pdgId
 # FORMAT: {pdgId: charge, mass [GeV]}
 PDG_PROPS = {
+    5:          (-1/3, 4.18),
     2212:       ( 1,  0.938272 ),
     2112:       ( 0,  0.939565 ),
     211:        ( 1,  0.13957 ),
